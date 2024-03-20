@@ -12,6 +12,20 @@
             height: 400px;
             width: 100%;
         }
+        /* Estilo para a lista de marcadores */
+        #marker-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        /* Estilo para os itens da lista de marcadores */
+        .marker-item {
+            margin-bottom: 5px;
+        }
+        /* Estilo para o botão de remover marcador */
+        .remove-button {
+            cursor: pointer;
+            color: red;
+        }
     </style>
 </head>
 <body>
@@ -19,8 +33,24 @@
     <!-- Elemento para o mapa -->
     <div id="map"></div>
 
+    <!-- Botão para iniciar a viagem -->
+    <button id="start-journey">Iniciar Viagem</button>
+
+    <!-- Lista de marcadores -->
+    <h2>Marcadores</h2>
+    <ul id="marker-list"></ul>
+
+
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
+        // Array para armazenar os marcadores
+        var markers = [];
+        // Variável para armazenar o tempo do último marcador
+        var firstMarkerTime = null;
+
+        // Variável para armazenar o ID do marcador do último registro de tempo
+        var lastRecordedMarkerId = null;
+
         // Função para inicializar o mapa
         function initMap() {
             // Cria um novo mapa com OpenStreetMap
@@ -31,6 +61,30 @@
                 maxZoom: 19,
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
+
+            // Carrega os marcadores salvos do localStorage
+            loadMarkers();
+
+            // Adiciona evento de clique no mapa para adicionar marcadores
+            map.on('click', function(e) {
+                // Adiciona um marcador no mapa
+                var marker = L.marker(e.latlng).addTo(map);
+
+                // Adiciona o marcador ao array de marcadores
+                markers.push(marker);
+
+                // Atualiza a lista de marcadores
+                updateMarkerList();
+
+                // Salva os marcadores no localStorage
+                saveMarkers();
+            });
+
+            // Adiciona evento de clique no botão "Iniciar Viagem"
+            document.getElementById('start-journey').addEventListener('click', function() {
+                // Ativa o monitoramento da viagem
+                startJourney();
+            });
 
             // Função para atualizar a posição no mapa
             function updateMap() {
@@ -51,6 +105,36 @@
                         } else {
                             map.marker.setLatLng([latitude, longitude]).update();
                         }
+
+                        // Verifica se a viagem está ativa
+                        if (journeyActive) {
+                            // Verifica a distância para cada marcador
+                            markers.forEach(function(marker) {
+                                // Verifica se o marcador é diferente do marcador do último registro de tempo
+                                if (marker._leaflet_id !== lastRecordedMarkerId) {
+                                    var distance = marker.getLatLng().distanceTo([latitude, longitude]);
+                                    // Se a distância for menor que 50 metros
+                                    if (distance < 50) {
+                                        // Se for o primeiro marcador
+                                        if (firstMarkerTime === null) {
+                                            firstMarkerTime = new Date();
+                                        } else {
+                                            // Calcula a diferença de tempo entre os marcadores
+                                            var currentTime = new Date();
+                                            var timeDifference = currentTime - firstMarkerTime;
+                                            // Exibe a diferença de tempo na tela
+                                            alert('Tempo entre os marcadores: ' + (timeDifference / 1000) + ' segundos');
+                                            // Armazena a diferença de tempo no localStorage
+                                            localStorage.setItem('timeDifference', timeDifference);
+                                            // Reseta o tempo do primeiro marcador para o próximo
+                                            firstMarkerTime = currentTime;
+                                        }
+                                        // Atualiza o ID do marcador do último registro de tempo
+                                        lastRecordedMarkerId = marker._leaflet_id;
+                                    }
+                                }
+                            });
+                        }
                     });
                 } else {
                     // Caso o navegador não suporte a Geolocation API
@@ -58,15 +142,71 @@
                 }
             }
 
-            // Chama a função de atualização inicialmente
-            updateMap();
+            // Função para atualizar a lista de marcadores
+            function updateMarkerList() {
+                var markerList = document.getElementById('marker-list');
+                markerList.innerHTML = ''; // Limpa a lista antes de atualizar
 
-            // Atualiza a posição no mapa a cada 5 segundos
-            setInterval(updateMap, 5000);
-        }
+                // Para cada marcador, adiciona um item à lista
+                markers.forEach(function(marker, index) {
+                    var listItem = document.createElement('li');
+                    listItem.className = 'marker-item';
+                    listItem.textContent = 'Marcador ' + (index + 1);
 
-        // Chama a função initMap() quando o corpo da página é carregado
-        window.onload = initMap;
+                    // Adiciona um botão para remover o marcador
+                    var removeButton = document.createElement('span');
+                    removeButton.className = 'remove-button';
+                    removeButton.textContent = ' (Remover)';
+                    removeButton.onclick = function() {
+                        // Remove o marcador do mapa
+                        map.removeLayer(marker);
+                        // Remove o marcador do array de marcadores
+                        markers.splice(index, 1);
+                        // Atualiza a lista de marcadores
+                        updateMarkerList();
+
+                        // Salva os marcadores no localStorage
+                        saveMarkers();
+                    };
+
+                    // Adiciona o botão de remover ao item da lista
+                    listItem.appendChild(removeButton);
+
+                    // Adiciona o item à lista
+                    markerList.appendChild(listItem);
+                });
+            }
+
+            // Função para salvar os marcadores no localStorage
+            function saveMarkers() {
+                localStorage.setItem('markers', JSON.stringify(markers.map(function(marker) {
+                    return marker.getLatLng();
+                })));
+            }
+
+            // Função para carregar os marcadores do localStorage
+            function loadMarkers() {
+                var savedMarkers = localStorage.getItem('markers');
+                if (savedMarkers) {
+                    JSON.parse(savedMarkers).forEach(function(coords) {
+                        var marker = L.marker(coords).addTo(map);
+                        markers.push(marker);
+                    });
+
+                    // Atualiza a lista de marcadores
+                    updateMarkerList();
+                }
+            }
+
+                // Chama a função de atualização inicialmente
+                updateMap();
+
+                // Atualiza a posição no mapa a cada 5 segundos
+                setInterval(updateMap, 5000);
+            }
+
+            // Chama a função initMap() quando o corpo da página é carregado
+            window.onload = initMap;
     </script>
 </body>
 </html>
