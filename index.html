@@ -1,1 +1,31 @@
-Hello World!
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obter Coordenadas GPS</title>
+</head>
+<body>
+    <h1>Obter Coordenadas GPS</h1>
+    <p>Latitude: <span id="latitude"></span></p>
+    <p>Longitude: <span id="longitude"></span></p>
+
+    <script>
+        // Verifica se o navegador suporta a Geolocation API
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                // Obtém as coordenadas de latitude e longitude
+                var latitude = position.coords.latitude;
+                var longitude = position.coords.longitude;
+
+                // Exibe as coordenadas na página HTML
+                document.getElementById('latitude').textContent = latitude;
+                document.getElementById('longitude').textContent = longitude;
+            });
+        } else {
+            // Caso o navegador não suporte a Geolocation API
+            alert("Geolocalização não suportada pelo seu navegador.");
+        }
+    </script>
+</body>
+</html>
